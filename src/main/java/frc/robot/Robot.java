@@ -81,6 +81,8 @@ public class Robot extends TimedRobot {
     PWMVictorSPX rightMotor = new PWMVictorSPX(1);
     DifferentialDrive drive = new DifferentialDrive(leftMotor, rightMotor);
 
+    private double[] AprilTagPoseEstimate;
+
     @Override
     public void robotInit() {
         leftMotor.setInverted(false);
@@ -91,8 +93,13 @@ public class Robot extends TimedRobot {
     public void teleopPeriodic() {
         double forwardSpeed;
         double rotationSpeed;
+        double SimTurn;
         var result = camera.getLatestResult();
+
         SmartDashboard.putNumber("Best Target to Rotate to: ", 0);
+        SmartDashboard.putNumber("Target Rotation ", 0);
+        SmartDashboard.putNumber("Robot Positon", 0);
+        SmartDashboard.putNumber("Simturn ", 0);
 
         if (xboxController.getRawAxis(4) > 0) {
             // Vision-alignment mode
@@ -114,11 +121,17 @@ public class Robot extends TimedRobot {
 
                 // Also calculate angular power
                 // (This rotationSpeed must be positive to turn counter-clockwise.)
-                rotationSpeed = -turnController.calculate(result.getBestTarget().getYaw(), 0);
-                //rotationSpeed = -turnController.calculate(AprilTag.generate36h11AprilTagImage(4), 0);
-
+                //rotationSpeed = -turnController.calculate(result.getBestTarget().getYaw(), 0);
+                //rotationSpeed = -turnController.calculate(((PhotonTrackedTarget) result.getTargets()).getYaw(), 0);
+                SimTurn = -turnController.calculate(result.getBestTarget().getYaw(), 0);
 
                 SmartDashboard.putNumber("Best Target to Rotate to: ", result.getBestTarget().getYaw());
+                SmartDashboard.putString("Best target number, ", result.getBestTarget().toString());
+                SmartDashboard.putNumber("Simturn ", SimTurn);
+                //SmartDashboard.putNumberArray("Robot Positon ", AprilTagPoseEstimate);
+                //SmartDashboard.putNumber("Target Rotation ", ((PhotonTrackedTarget) result.getTargets()).getYaw());
+
+                drive.arcadeDrive(forwardSpeed, SimTurn);
 
             } else {
                 // If we have no targets, stay still.
