@@ -29,6 +29,7 @@ import edu.wpi.first.math.util.Units;
 import edu.wpi.first.util.sendable.Sendable;
 import edu.wpi.first.wpilibj.Joystick;
 import edu.wpi.first.wpilibj.TimedRobot;
+import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj.XboxController;
 import edu.wpi.first.wpilibj.drive.DifferentialDrive;
 import edu.wpi.first.wpilibj.motorcontrol.PWMVictorSPX;
@@ -36,13 +37,19 @@ import edu.wpi.first.wpilibj.shuffleboard.Shuffleboard;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import frc.robot.sim.DrivetrainSim;
 import edu.wpi.first.apriltag.AprilTag;
+import edu.wpi.first.apriltag.AprilTagDetection;
+import edu.wpi.first.apriltag.AprilTagDetector;
+import edu.wpi.first.apriltag.AprilTagFieldLayout;
 import edu.wpi.first.apriltag.AprilTagPoseEstimate;
+
+import java.util.concurrent.RunnableScheduledFuture;
 
 import javax.swing.text.StyleContext.SmallAttributeSet;
 
 import org.photonvision.PhotonCamera;
 import org.photonvision.PhotonUtils;
 import org.photonvision.targeting.PhotonTrackedTarget;
+import org.photonvision.targeting.TargetCorner;
 
 /**
  * The VM is configured to automatically run this class, and to call the functions corresponding to
@@ -83,6 +90,12 @@ public class Robot extends TimedRobot {
 
     private double[] AprilTagPoseEstimate;
 
+    // vision var
+    double timer = 0;
+    double SimTurn = 0;
+    double FirstApriltag = 0;
+    boolean check = false;
+
     @Override
     public void robotInit() {
         leftMotor.setInverted(false);
@@ -93,18 +106,19 @@ public class Robot extends TimedRobot {
     public void teleopPeriodic() {
         double forwardSpeed;
         double rotationSpeed;
-        double SimTurn;
         var result = camera.getLatestResult();
 
-        SmartDashboard.putNumber("Best Target to Rotate to: ", 0);
-        SmartDashboard.putNumber("Target Rotation ", 0);
-        SmartDashboard.putNumber("Robot Positon", 0);
-        SmartDashboard.putNumber("Simturn ", 0);
+        SmartDashboard.putString("Best target number: ", "");
+        SmartDashboard.putNumber("Sim turn: ", 0);
+        SmartDashboard.putNumber("First April Tag", 0);
+        SmartDashboard.putNumber("Timer: ", 0);
 
-        if (xboxController.getRawAxis(4) > 0) {
+        if (xboxController.getRawAxis(4) > 0 && result.hasTargets()) {
             // Vision-alignment mode
             // Query the latest result from PhotonVision
             //var result = camera.getLatestResult();
+
+            //FirstApriltag = result.getBestTarget().getYaw();
 
             if (result.hasTargets()) {
                 // First calculate range
@@ -120,18 +134,31 @@ public class Robot extends TimedRobot {
                 forwardSpeed = -forwardController.calculate(range, GOAL_RANGE_METERS);
 
                 // Also calculate angular power
-                // (This rotationSpeed must be positive to turn counter-clockwise.)
+                // (This rotationSpeed must be positive to turn counter-clockwise.) 
                 //rotationSpeed = -turnController.calculate(result.getBestTarget().getYaw(), 0);
-                //rotationSpeed = -turnController.calculate(((PhotonTrackedTarget) result.getTargets()).getYaw(), 0);
-                SimTurn = -turnController.calculate(result.getBestTarget().getYaw(), 0);
+                //SimTurn = -turnController.calculate(result.getBestTarget().getYaw(), 0);
+                if(SimTurn == -1){
+                    SimTurn = 0;
+                    FirstApriltag = 0;
+                }
+                else{
+                    if(timer > 0){
+                        SimTurn = -turnController.calculate(FirstApriltag, 0);
+                        timer--;
+                    }
+                    else if(timer == 0){
+                        FirstApriltag = result.getBestTarget().getYaw();
+                        timer = 5;
+                    }
+                }
 
-                SmartDashboard.putNumber("Best Target to Rotate to: ", result.getBestTarget().getYaw());
-                SmartDashboard.putString("Best target number, ", result.getBestTarget().toString());
-                SmartDashboard.putNumber("Simturn ", SimTurn);
-                //SmartDashboard.putNumberArray("Robot Positon ", AprilTagPoseEstimate);
-                //SmartDashboard.putNumber("Target Rotation ", ((PhotonTrackedTarget) result.getTargets()).getYaw());
+                SmartDashboard.putString("Best target number: ", result.getBestTarget().toString());
+                SmartDashboard.putNumber("Sim turn: ", SimTurn);
+                SmartDashboard.putNumber("First April Tag", FirstApriltag);
+                SmartDashboard.putNumber("Timer: ", timer);
 
-                drive.arcadeDrive(forwardSpeed, SimTurn);
+                //drive.arcadeDrive(forwardSpeed, SimTurn);
+                drive.arcadeDrive(forwardSpeed, -SimTurn);
 
             } else {
                 // If we have no targets, stay still.
